@@ -80,13 +80,15 @@ async def request(
 class BackendTests(unittest.TestCase):
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
-        os.environ["DATABASE_PATH"] = str(Path(self.temp_dir.name) / "test.db")
+        os.environ["DATABASE_URL"] = (
+            Path(self.temp_dir.name).joinpath("test.db").as_uri()
+        ).replace("file:///", "sqlite:///")
         get_settings.cache_clear()
         init_db()
 
     def tearDown(self) -> None:
         get_settings.cache_clear()
-        os.environ.pop("DATABASE_PATH", None)
+        os.environ.pop("DATABASE_URL", None)
         self.temp_dir.cleanup()
 
     def create_test_user(self, email: str):

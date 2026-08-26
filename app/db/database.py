@@ -1,6 +1,7 @@
 from collections.abc import Iterator
 from contextlib import contextmanager
 from functools import lru_cache
+from pathlib import Path
 
 from sqlalchemy import Engine, create_engine, event
 from sqlalchemy.orm import Session, sessionmaker
@@ -10,28 +11,40 @@ from app.db.models import Base
 
 
 @lru_cache
-def _engine_for_path(database_path: str) -> Engine:
-    engine = create_engine(
-        f"sqlite:///{database_path}",
-        connect_args={"check_same_thread": False, "timeout": 10},
-    )
+def _engine_for_url(database_url: str) -> Engine:
+    engine_kwargs: dict[str, object] = {
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+    }
 
-    @event.listens_for(engine, "connect")
-    def configure_sqlite(connection, _) -> None:
-        cursor = connection.cursor()
-        try:
-            cursor.execute("PRAGMA foreign_keys = ON")
-            cursor.execute("PRAGMA busy_timeout = 5000")
-        finally:
-            cursor.close()
+    if database_url.startswith("sqlite"):
+        engine_kwargs["connect_args"] = {
+            "check_same_thread": False,
+            "timeout": 10,
+        }
+
+    engine = create_engine(database_url, **engine_kwargs)
+
+    if database_url.startswith("sqlite"):
+        @event.listens_for(engine, "connect")
+        def configure_sqlite(connection, _) -> None:
+            cursor = connection.cursor()
+            try:
+                cursor.execute("PRAGMA foreign_keys = ON")
+                cursor.execute("PRAGMA busy_timeout = 5000")
+            finally:
+                cursor.close()
 
     return engine
 
 
 def get_engine() -> Engine:
-    path = get_settings().database_path.resolve()
-    path.parent.mkdir(parents=True, exist_ok=True)
-    return _engine_for_path(str(path))
+    database_url = get_settings().database_url
+    if database_url.startswith("sqlite:///"):
+        Path(database_url.removeprefix("sqlite:///")).expanduser().parent.mkdir(
+            parents=True, exist_ok=True
+        )
+    return _engine_for_url(database_url)
 
 
 def init_db() -> None:

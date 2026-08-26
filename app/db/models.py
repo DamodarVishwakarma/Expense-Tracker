@@ -26,9 +26,7 @@ class UserRecord(Base):
 
     username: Mapped[str] = mapped_column(String(32), primary_key=True)
     full_name: Mapped[str] = mapped_column(String(100), nullable=False)
-    email: Mapped[str] = mapped_column(
-        String(254, collation="NOCASE"), unique=True, nullable=False
-    )
+    email: Mapped[str] = mapped_column(String(254), unique=True, nullable=False)
     hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     disabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
